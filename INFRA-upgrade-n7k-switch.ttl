@@ -1,0 +1,295 @@
+; TTL SCRIPT TO UPGRADE SWITCH SOFTWARE
+
+;***********************
+; Command line arguments
+
+
+; WHICH SFTP SERVER TO USE 
+switch = param2
+
+; WHICH SFTP SERVER TO USE 
+; 1 = HOST-A
+; 2 = HOST-B
+useServerCL = param3
+strcompare useServerCL 'win'
+if result = 0 then
+     useServer = 1
+endif
+strcompare useServerCL 'eng'
+if result = 0 then
+     useServer = 2
+endif
+
+; ERASE CONFIG ON UPGRADE? (0 = don't erase; 1 = erase)
+eraseConfigCL = param4
+strcompare eraseConfigCL 'save-config'
+if result = 0 then
+     eraseConfig = 0
+endif
+strcompare eraseConfigCL 'erase-config'
+if result = 0 then
+     eraseConfig = 1
+endif
+
+; SKIP DOWNLOADING/CHANGING KICKSTART IMAGE? (0 = don't skip; 1 = skip)
+skipKickstartCL = param5
+strcompare skipKickstartCL 'no-skip-kick'
+if result = 0 then
+     skipKickstart = 0
+endif
+strcompare skipKickstartCL 'skip-kick'
+if result = 0 then
+     skipKickstart = 1
+endif
+
+; PATH TO USE FOR ENG DOWNLOAD
+kickPath = param6
+sysPath = param7
+
+; KICKSTART FILENAME
+kickFilename = param8
+
+; SYSTEM FILENAME
+sysFilename = param9
+
+;***********************
+
+;messagebox switch 'Current Switch'
+;messagebox sysType 'System Type'
+;messagebox useServer 'Server'
+;messagebox eraseConfig 'Erase Config'
+;messagebox skipKickstart 'Skip Kick'
+;messagebox kickPath 'Kick Path'
+;messagebox sysPath 'Sys Path'
+;messagebox kickFilename 'Kick Filename'
+;messagebox sysFilename 'Sys Filename'
+
+; skip downloading/changing the system image? (0 = don't skip; 1 = skip)
+skipSystem = 0
+
+;#######################################################
+
+
+if useServer = 1 then 
+	;SFTP from HOST-A
+	sftp_server = 'host-a'
+	sftp_username = 'Administrator'
+     
+     include 'C:\Users\Administrator\Documents\bin\passwords.ttl'
+
+     ; OVERRIDE PARAMETERS PASSED ON COMMAND LINE HERE IF DESIRED
+     ;kickFilename = 'n7000-s1-kickstart.6.1.4.bin'
+     ;sysFilename = 'n7000-s1-dk9.6.1.4.bin'
+	kickPath = '/home/Administrator/tftpboot/img'
+     sysPath = '/home/Administrator/tftpboot/img'
+
+
+elseif useServer = 2 then
+     ;SFTP from HOST-B
+     sftp_server = 'host-b'
+	sftp_username = 'Administrator'
+
+     include 'C:\Users\Administrator\Documents\bin\passwords.ttl'
+
+     ; OVERRIDE PARAMETERS PASSED ON COMMAND LINE HERE IF DESIRED
+	;kickPath = '/auto/tftpboot'
+	;sysPath = '/auto/tftpboot'
+	;kickFilename = 'n7000-s2-kickstart.6.2.10.bin'
+	;sysFilename = 'n7000-s2-dk9.6.2.10.bin'
+    
+endif
+
+; use same filenames on switch
+     new_kickFilename = kickFilename
+     new_sysFilename = sysFilename
+
+; rename the files on switch
+;     new_kickFilename = 'n7000-s2-kickstart.6.2.10.bin'
+;     new_sysFilename = 'n7000-s2-dk9.6.2.10.bin'
+
+; USERNAME & PASSWORD FOR SWITCH LOGIN
+username = 'admin'
+password = 'cisco123'
+
+
+userprompt = 'login:'
+timeout = 0
+strconcat switch ':23 /nossh /timeout=4'
+
+connect switch
+wait userprompt
+sendln username
+wait 'Password:'
+sendln password
+waitregex ".*# $"
+
+;######################
+
+;#Rationalize image names with active supervisor version
+include 'C:\Program Files\teraterm\INFRA-rationalize-image-names.ttl'
+
+if sysVersion = 0 then
+     sendln '! COULD NOT GET THE SUPERVISOR VERSION, ABORTING UPGRADE.'
+     exit
+endif
+
+;######################
+
+waitregex ".*# $"
+
+if skipKickstart = 0 then
+     ;copy kickstart
+     send 'copy sftp://
+     send sftp_username
+     send '@'
+     send sftp_server kickPath
+     send '/'
+     send kickFilename
+     send ' bootflash:///'
+     send new_kickFilename
+     sendln ' vrf management'
+     wait 'Are you sure you want to continue connecting' 'password:' 'Password:' 'Warning: There is already a file existing with this name. Do you want to overwrite' 'Overwriting/deleting this image is not allowed'
+          if result=1 then
+               sendln 'yes'
+               wait 'password:' 'Password:'
+               sendln sftp_password
+          ; Don't bother overwriting
+          elseif result=2 then
+               sendln sftp_password
+          elseif result=3 then
+               sendln sftp_password
+          elseif result=4 then
+               sendln 'n'
+          elseif result=5 then
+               sendln "!Aborting upgrade - can't overwrite current image!!"
+               exit
+          endif
+     waitregex "No space left on device" "No such file or directory" "Couldn't close file: Failure" ".*# $"
+          if result=1 then
+               sendln 'del bootflash:///new_kickFilename"
+               waitregex ".*# $"
+               sendln '!Aborting upgrade - no space on flash!!'
+               exit
+          elseif result=2 then
+               sendln '!Aborting upgrade - no such file!!'
+               exit
+          elseif result=3 then
+               sendln '!Aborting upgrade - sftp read error!!'
+               exit
+          endif
+endif
+
+
+
+if skipSystem = 0 then
+     ;copy system image
+     send 'copy sftp://
+     send sftp_username
+     send '@'
+     send sftp_server sysPath 
+     send '/'
+     send sysFilename
+     send ' bootflash:///'
+     send new_sysFilename
+     sendln ' vrf management'
+     wait 'Are you sure you want to continue connecting' 'password:' 'Password:' 'Warning: There is already a file existing with this name. Do you want to overwrite' 'Overwriting/deleting this image is not allowed'  
+          if result=1 then
+               sendln 'yes'
+               wait 'password:' 'Password:'
+               sendln sftp_password
+          ; Don't bother overwriting
+          elseif result=2 then
+               sendln sftp_password
+          elseif result=3 then
+               sendln sftp_password
+          elseif result=4 then
+               sendln 'n'
+          elseif result=5 then
+               sendln "!Aborting upgrade - can't overwrite current image!!"     
+               exit
+          endif
+     waitregex "No space left on device" "No such file or directory" "Couldn't close file: Failure" ".*# $"
+          if result=1 then
+               sendln 'del bootflash:///new_sysFilename"
+               waitregex ".*# $"
+               sendln '!Aborting upgrade - no space on flash!!'
+               exit
+          elseif result=2 then
+               sendln '!Aborting upgrade - no such file!!'
+               exit
+          elseif result=3 then
+               sendln '!Aborting upgrade - sftp read error!!'
+               exit
+          endif
+endif
+
+; remove current bootstrings
+timeout = 5
+for i 1 4
+	sendln 'sh run | eg "^boot" | sed "s/^/no /"'
+	waitregex 'boot kickstart.*sup-1' 'boot system.*sup-1' 'boot kickstart.*sup-2' 'boot system.*sup-2'
+	if result=1 then
+		kick1_line = inputstr
+		sendln 'conf t'
+		wait '#'
+		sendln kick1_line
+		wait '#'
+		sendln 'exit'
+		wait '#'
+	elseif result=2 then
+		sys1_line = inputstr
+		sendln 'conf t'
+		wait '#'
+		sendln sys1_line
+		wait '#'
+		sendln 'exit'
+		wait '#'
+	elseif result=3 then
+		kick2_line = inputstr
+		sendln 'conf t'
+		wait '#'
+		sendln kick2_line
+		wait '#'
+		sendln 'exit'
+		wait '#'
+	elseif result=4 then
+		sys2_line = inputstr
+		sendln 'conf t'
+		wait '#'
+		sendln sys2_line
+		wait '#'
+		sendln 'exit'
+		wait '#'		
+	else
+		wait '#'
+		break
+	endif
+next
+timeout = 0
+
+; add new bootstrings
+sendln 'conf t'
+waitregex ".*\(config\)# $"
+send 'boot kick '
+sendln new_kickFilename
+waitregex ".*\(config\)# $" "Failed to configure bootvar"
+if result=2 then
+     exit
+endif
+send 'boot sys '
+sendln new_sysFilename
+waitregex ".*\(config\)# $" "Failed to configure bootvar"
+if result=2 then
+     exit
+endif
+     sendln 'exit'
+waitregex ".*# $"
+sendln 'copy running-config startup-config vdc-all'
+waitregex ".*# $"
+sendln 'show boot'
+
+if eraseConfig = 1 then 
+     include 'erase-switch-config.ttl'
+endif
+
+include 'reload-switch.ttl'
