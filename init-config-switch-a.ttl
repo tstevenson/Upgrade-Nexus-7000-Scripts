@@ -1,0 +1,16 @@
+server = 'termserver'
+username = 'admin'
+password = 'cisco123'
+
+timeout = 0
+strconcat server ':2068 /nossh /timeout=4'
+
+connect server
+sendln 'n'
+pause 3
+sendln ''
+
+include 'C:\Program Files\teraterm\GENERIC-n7k-abort-setup.ttl'
+include 'C:\Program Files\teraterm\GENERIC-n7k-base-config.ttl'
+include 'switch-a-config.ttl'
+include 'GENERIC-n7k-write-config.ttl'

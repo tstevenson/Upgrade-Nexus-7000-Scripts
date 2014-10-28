@@ -1,0 +1,40 @@
+sendln ''
+sendln ''
+sendln ''
+
+; first two are 5.x & 6.x strings used for upgrade script; second two are 5.x & 6.x strings for applying base config directly/manually
+wait 'Do you want to enforce secure password standard' 'Abort Auto Provisioning and continue with normal setup' 'Enter the password for "admin":' 'Abort Power On Auto Provisioning and continue with normal setup'
+     if result=1 then
+          sendln 'n'
+          wait 'Enter the password for "admin":'
+     elseif result=2 then
+          sendln 'y'
+          wait 'Do you want to enforce secure password standard'
+          sendln 'n'
+          wait 'Enter the password for "admin":'
+     elseif result=3 then
+          ;do nothing, proceed to enter password
+     elseif result=4 then
+          sendln 'y'
+          wait 'Do you want to enforce secure password standard'
+          sendln 'n'
+          wait 'Enter the password for "admin":'
+     endif
+
+sendln password
+wait 'Confirm the password for "admin":'
+sendln password
+
+
+wait 'Do you want to enable admin vdc' 'Would you like to enter the basic configuration dialog (yes/no):'
+     if result=1 then
+          sendln 'n'
+     endif
+
+sendln 'no'
+
+wait 'login:'
+sendln username
+wait 'Password:'
+sendln password
+wait '#'

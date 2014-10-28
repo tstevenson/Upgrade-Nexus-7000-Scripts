@@ -1,0 +1,12 @@
+timeout=15
+try_again = 1
+do
+     sendln 'copy run start vdc-all'
+     wait 'Configuration update aborted: system not ready' '[#'
+     if result=1 then
+          waitregex ".*# $"
+          pause 3
+     elseif result=2 then
+          end
+     endif
+loop while try_again = 1
