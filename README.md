@@ -7,7 +7,7 @@ Originally developed for internal (to Cisco) technical marketing lab environment
 
 Some of the includes use static paths, sorry 'bout that. Search for "include" and fix as necessary in the .ttl files. Apply IPs, hostnames, etc. as necessary (search for w.x.y.z, a.b.c.d, foo, example.com, etc.).
 
-Structure/relationship of files looks like this:
+Structure/relationship of files looks like this (view in Raw mode):
 
 upgrade-image-on-switch(es).pl
   |
