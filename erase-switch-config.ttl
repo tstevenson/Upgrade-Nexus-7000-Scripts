@@ -1,0 +1,4 @@
+sendln 'write erase'
+wait 'Do you wish to proceed anyway? (y/n)  [n]'
+sendln 'y'
+wait '#'
