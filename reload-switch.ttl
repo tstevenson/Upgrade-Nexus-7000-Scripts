@@ -1,0 +1,47 @@
+timeout=3
+try_again = 1
+do
+	sendln 'reload'
+	wait 'there is unsaved configuration' 'auto-copy is in progress' 'AUTO_COPY_IN_PROGRESS' 'This command will reboot the system'
+	if result=1 then
+		sendln 'n'
+		end
+	elseif result=2 then
+		sendln 'n'
+		waitregex ".*# $"
+		pause 3
+	elseif result=3 then
+		sendln 'n'
+		waitregex ".*# $" 'Do you want to continue with reload'
+		if result=2 then
+			sendln 'n'
+		endif
+		waitregex ".*# $"
+		pause 3	
+	elseif result=4 then
+		sendln 'y'
+		end
+	endif
+loop while try_again = 1
+
+
+;!!!WARNING! there is unsaved configuration!!!
+;This command will reboot the system. (y/n)?  [n] n
+;
+;switch# reload
+;WARNING: <auto-copy is in progress>. So, reload is not recommended
+;This command will reboot the system. (y/n)?  [n]
+;switch#
+;
+;;5.1 only:
+;WARNING: AUTO_COPY_IN_PROGRESS. So, reload is not recommended
+;Do you want to continue with reload. (y/n)?  [n] n
+;This command will reboot the system. (y/n)?  [n]
+;
+;tstevens-7018# reload
+;WARNING: AUTO_COPY_IN_PROGRESS. So, reload is not recommended
+;This command will reboot the system. (y/n)?  [n]
+;tstevens-7018#
+;
+;This command will reboot the system. (y/n)?  [n]
+
